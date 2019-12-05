@@ -5,7 +5,7 @@ A single json type based on native string type for Delphi
 To use the Json type just add the unit assis.json; Then declare a variable of type json, same as a string variable.
 
 ```  Delphi
-uses assis.json, assis.strings;
+uses assis.json;
 var Employee: Json;
 begin
   Employee := '{"id": 965, "name": "Jose", "location": "Brasil"} 
