@@ -372,9 +372,9 @@ object Form1: TForm1
     Anchors = [akLeft, akTop, akRight]
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
-    Font.Height = -11
-    Font.Name = 'Consolas'
-    Font.Style = []
+    Font.Height = -12
+    Font.Name = 'Firac'
+    Font.Style = [fsBold]
     ParentFont = False
     TabOrder = 1
   end
@@ -455,6 +455,15 @@ object Form1: TForm1
     TabOrder = 35
     OnClick = btnDatasetClick
   end
+  object btnSubnivel: TButton
+    Left = 251
+    Top = 218
+    Width = 75
+    Height = 25
+    Caption = 'Subn'#237'vel'
+    TabOrder = 36
+    OnClick = Subnivel
+  end
   object TabPedidos: TFDMemTable
     Active = True
     FetchOptions.AssignedValues = [evMode]
@@ -468,7 +477,7 @@ object Form1: TForm1
     Left = 568
     Top = 136
     Content = {
-      414442530F0032380E2D0200FF00010001FF02FF030400120000004300680061
+      414442530F00D8470E2D0200FF00010001FF02FF030400120000004300680061
       0072007400440061007400610005000A0000005400610062006C006500060000
       000000070000080032000000090000FF0AFF0B04000E0000004F007200640065
       0072004900440005000E0000004F007200640065007200490044000C00010000

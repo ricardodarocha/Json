@@ -4,7 +4,6 @@ uses
   Vcl.Forms,
   ProtoJson in 'ProtoJson.pas' {Form1},
   Assis.Json in 'Assis.Json.pas';
-
 {$R *.res}
 
 begin

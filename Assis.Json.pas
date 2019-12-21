@@ -46,8 +46,11 @@ type
 
 const
   EmptyJson = '{}';
+  NullJson = 'null';
   EmptyArray = '[]';
-
+  _ConteudoChavePadrao = 'valor';
+  ReplacePoint = '$REPLACEPOINT';
+  ReplacePoint2 = '",$REPLACEPOINT"';
 type
   Json = string;
 
@@ -55,7 +58,8 @@ type
     /// <summary>
     ///   make an empty json {}
     /// </summary>
-    procedure Clear;
+    function Clear: Json;
+    function New(NewValue: String = ''): Json;
 
     /// <summary>
     ///   make an json template based on format('',[])
@@ -68,23 +72,23 @@ type
     /// <summary>
     ///   use ADD to add pair of any kind you want
     /// </summary>
-    procedure Add(key: string; value: integer); overload;
-    procedure Add(key: string; value: int64); overload;
+    function Add(key: string; value: integer): Json; overload;
+    function Add(key: string; value: int64): Json; overload;
     procedure Add(key: string; value: extended); overload;
     procedure Add(key: string; value: boolean); overload;
 
     /// <remarks>
     ///   inplicit types will detect json types automatically
     /// </remarks>
-    procedure Add(key, value: string; inplicit: boolean = true); overload;
+    function Add(key, value: string; implicit: boolean = true): Json; overload;
 
     /// <summary>
     /// Dinamically add an ITEM of a Json Array. See StartArray and CloseArray
     /// </summary>
     procedure AddArrayItem(value: Json; quebraLinha: String = #13); overload;
     procedure AddArrayItem(value: TObject; quebraLinha: String = #13); overload;
-    procedure StartArray;
-    procedure CloseArray;
+    function StartArray: Json;
+    function CloseArray: Json;
     // procedure Add(key: string; value: date); overload;
 
     /// <summary>
@@ -214,16 +218,29 @@ type
     procedure Read(value: TChart); overload;
     // procedure Read(Value: TValue); overload;
     procedure Read(value: TDataset); overload;
+    procedure LoadFromFile(const aFilename: TFileName);
+    procedure SaveToFile(const aFilename: TFileName);
+
+
+    /// <summary>
+    /// {Inicia um json Aninhado: {} }
+    /// </summary>
+    function  &Begin(Key: String): Json;         //   {
+    function  &End(Key: String = ''): Json;      //   }
+
+    procedure Assert(mensagem: String = '');
+
   private
     function GetKey(Index: string = ''): String; overload;
     function GetKey(Index: integer): String; overload;
     function JsonObjectInstance(Parse: String): TJsonObject;
     function JsonInstance(Parse: String): TJsonValue;
     procedure SetKey(Index: string; const value: String);
+    function LOG(Mensagem:  ListOfStrings; Sep: String = ' '; NewLine: String = #13#10; aFormatdatetime: String = '"%s"'): String; overload;
+    function LOG(Mensagem: String; NewLine: String = #13#10; aFormatdatetime: String = '"%s"'): String; overload;
   public
     property Value[Index: string]: String read GetKey write setKey{default};
-    property &Set[Index: string]: String write SetKey {default};
-  end;
+    property &Set[Index: string]: String write SetKey {default};  end;
 
   ListOfStringAssistent = record helper for ListOfStrings
      procedure clear;
@@ -240,6 +257,7 @@ type
 implementation
 
 { JsonAssistent }
+
 
 function JsonAssistent.JsonInstance(Parse: String): TJsonValue;
 begin
@@ -280,11 +298,33 @@ begin
   self.AddArrayItem(TJson.ObjectToJsonString(value), quebraLinha);
 end;
 
-procedure JsonAssistent.Add(key: string; value: string; inplicit: boolean = true);
+function JsonAssistent.&Begin(Key: String): Json;
+begin
+  self.Add(key, ReplacePoint);
+  self := stringReplace(self, '"' + ReplacePoint + '"', ReplacePoint, []);    //'"{,';
+  result := self;
+end;
+
+function JsonAssistent.&End(Key: String): Json;
+begin
+  self := stringReplace(self, ReplacePoint, '}', []);
+  result := self;
+end;
+
+function JsonAssistent.Add(key: string; value: string; implicit: boolean = true): Json;
 var
   Objeto: TJsonObject;
+  Subnivel: Json;
 begin
-  if inplicit then
+  if pos(ReplacePoint, self) > 0 then
+  begin
+    Subnivel := '"' + key + '":' + '"' + value + '"';
+    self := StringReplace(Self, ReplacePoint,  ',' + Subnivel + ReplacePoint , []);
+    self := StringReplace(Self, '"{' + ReplacePoint,  '{' + Subnivel + ReplacePoint , []);
+    result := self;
+    exit;
+  end;
+  if implicit then
   begin
     Objeto := self.asJsonObject;
     if Json(value).asJsonValue is TJsonValue then
@@ -297,16 +337,22 @@ begin
   end
   else
     self := self.asJsonObject.AddPair(key, value).ToJSON;
+
+  result := self;
 end;
 
-procedure JsonAssistent.Add(key: string; value: integer);
+function JsonAssistent.Add(key: string; value: integer): Json;
 begin
-  self := self.asJsonObject.AddPair(key, TJsonNumber.Create(value)).ToJSON
+  self := self.asJsonObject.AddPair(key, TJsonNumber.Create(value)).ToJSON;
+
+  result := self;
 end;
 
-procedure JsonAssistent.Add(key: string; value: int64);
+function JsonAssistent.Add(key: string; value: int64): Json;
 begin
-  self := self.asJsonObject.AddPair(key, TJsonNumber.Create(value)).ToJSON
+  self := self.asJsonObject.AddPair(key, TJsonNumber.Create(value)).ToJSON;
+
+  result := self;
 end;
 
 procedure JsonAssistent.Add(key: string; value: extended);
@@ -687,6 +733,16 @@ begin
     raise Exception.Create(&Message);
 end;
 
+procedure JsonAssistent.Assert(mensagem: String);
+var fInstance: TJsonValue;
+begin
+  if mensagem  = '' then
+    mensagem := self + ' não é um json válido';
+  fInstance := JsonObjectInstance(self) as TJSONValue;
+  if not (fInstance is TJsonValue) then
+    raise Exception.Create( Mensagem);
+end;
+
 function JsonAssistent.asString: String;
 var
   &Message: String;
@@ -728,14 +784,28 @@ begin
 
 end;
 
-procedure JsonAssistent.Clear;
+function JsonAssistent.Clear: Json;
 begin
   self := EmptyJson;
+  result := self;
 end;
 
-procedure JsonAssistent.CloseArray;
+function JsonAssistent.New(NewValue: String = ''): Json;
+begin
+  Result := Self.Clear;
+  if NewValue <> '' then
+  try
+    Self.Read(NewValue);
+    result := Self;
+  finally
+
+  end;
+end;
+
+function JsonAssistent.CloseArray: Json;
 begin
   self := self + ']';
+  result := self;
 end;
 
 function JsonAssistent.GetKey(Index: integer): String;
@@ -762,7 +832,9 @@ begin
     if fInstance is TJsonObject then
       if (fInstance as TJsonObject).Count >= 0 then
         if (fInstance as TJsonObject).GetValue(Index) <> nil then
-          result := (fInstance as TJsonObject).GetValue(Index).ToJSON;
+          result := (fInstance as TJsonObject).GetValue(Index).ToJSON; 
+    if Result = EmptyStr then
+      result := emptyJson;
   finally
     fInstance.free;
   end;
@@ -791,6 +863,17 @@ begin
       for JsonPair in (fInstance as TJsonObject) do
         result.Add(JsonPair.JsonString.value);
 
+end;
+
+function JsonAssistent.LOG(Mensagem: ListOfStrings; Sep: String = ' '; NewLine: String = #13#10; aFormatdatetime: String = '"%s"'): String;
+var M, NovaMensagem: String;
+begin
+  Novamensagem := '';
+  for M in Mensagem do
+    NovaMensagem := NovaMensagem + sep + M;
+
+  Self := Self.LOG(NovaMensagem, NewLine, aFormatdatetime);
+  result := Self;
 end;
 
 function JsonAssistent.Values: ListOfStrings;
@@ -1004,43 +1087,108 @@ begin
   V := nil;
 end;
 
-procedure JsonAssistent.SetKey(Index: string; const value: String);
-var
-  fInstance: TJsonObject;
-  fReplace: String;
-  JsonValue: Json;
 
+procedure JsonAssistent.LoadFromFile(const aFilename: TFileName);
+var T: TextFile;
+  Line: String;
 begin
-
-  JsonValue := EmptyJson;
-  JsonValue.Read(value);
-  JsonValue := JsonValue.Value['valor'];
-
-
-  fInstance := JsonObjectInstance(self);
-  fReplace := fInstance.Values[Index].ToString; // toJson
-  if fReplace <> '' then
+try
+  Assignfile(T, aFilename);
+  Reset(T);
+  Self := '';
+  while not Eof(T) do
   begin
-    if fInstance is TJsonValue then
-    begin
-      fReplace := Format('"%s"', [index]) + ':' + fReplace;
-      JsonValue := Format('"%s"', [index]) + ':' + JsonValue;
-      if JsonValue.asJsonValue <> nil then
-        self := stringreplace(trim(self), fReplace, JsonValue.asJsonValue.ToString, [])
-      else
-        self := stringreplace(trim(self), fReplace, JsonValue, []);
-    end;
-  end
-  else
-  begin
-    self.Add(Index, value);
+    ReadLn(T, Line);
+    self := self + Line
   end;
+finally
 
 end;
 
-procedure JsonAssistent.StartArray;
+end;
+
+function JsonAssistent.LOG(Mensagem, NewLine: String; aFormatdatetime: String): String;
+
+begin
+  if aFormatdatetime <> '' then
+    mensagem := SysUtils.Format(mensagem, [formatdatetime(aFormatDatetime,now)]);
+
+  if NewLine = '' then
+    NewLIne := ' ';
+    
+  Self := Self + NewLine + mensagem;
+  result := Self;
+end;
+
+procedure JsonAssistent.SaveToFile(const aFilename: TFileName);
+ var T: TextFile;
+begin
+  AssignFile(T, aFilename);
+  ReWrite(T);
+  WriteLn(T, Self);
+  CloseFile(T);
+end;
+
+procedure JsonAssistent.SetKey(Index: string; const value: String);
+var
+  mInstance: TJsonObject;
+  mNewValue: Json;
+
+//- BOOL ----------------------------------------------------------
+  Index_Found: Boolean;         //Chave existe no JSON Self
+  NEWVALUE_IsJson: Boolean;     //Valor novo é um JSON válido
+
+  function Update(const Contexto: string; const NovoValor: String): String;
+  var
+    mStart,
+    mComprimentoDaChave: integer;
+    mLength, mSegundaParte: integer;
+    mTamanhoTotal: integer;
+    I: integer;
+    J: integer;
+    Console: String; { Todo: Criar classe LOG }
+
+  begin
+    Console := '';
+
+    mStart := pos(Contexto, Self); //Posicao de substituição no JSON principal
+    for I := mStart + 1 to length(Self)-1 do
+    begin
+      if self[i] = ':' then
+      begin
+//        mStart := I;
+        mComprimentoDaChave := pos(':', Contexto); 
+        mTamanhoTotal := Length(contexto) - mComprimentoDaChave -1;
+        Console.Log([Copy(Self, mStart, mComprimentoDaChave)]);
+        break;
+        
+      end else
+      if I < length(Self)-1 then
+        Continue;
+      raise Exception.Create('Set Key [' + Index + '] não encontrou ":"');
+    end;
+
+    mSegundaParte := mStart+mComprimentoDaChave;
+    Console.LOG([contexto,'valor antigo']);  //#log
+  
+    result := StringReplace(self, Contexto, NovoValor, []);
+
+  end;
+begin
+  Self.Assert(
+    'Método Set key ['+ Index + '] falhou. ' + Self + ' não é um JSON válido');
+
+  mInstance := Self.asJsonObject;
+  if mInstance.Values[Index] <> nil then
+    Self := Update('"' + Index + '":' + mInstance.Values[Index].ToJSON, '"' + Index + '":' + Value)
+  else
+    Self.Add(Index, Value)
+end;
+
+function JsonAssistent.StartArray: Json;
 begin
   self := '[';
+  result := self;
 end;
 
 procedure JsonAssistent.template(value: string; const args: array of const);

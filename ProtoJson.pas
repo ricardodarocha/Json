@@ -74,6 +74,7 @@ type
     lbValue: TLabel;
     TabPedidos: TFDMemTable;
     btnDataset: TButton;
+    btnSubnivel: TButton;
     procedure Limpar(Sender: TObject);
     procedure ParserNumber(Sender: TObject);
     procedure BotaoAClick(Sender: TObject);
@@ -93,6 +94,7 @@ type
     procedure btnAtribuirNovoClick(Sender: TObject);
     procedure btnDatasetClick(Sender: TObject);
     procedure comboAtribuirCampoSelect(Sender: TObject);
+    procedure Subnivel(Sender: TObject);
   private
     { Private declarations }
   public
@@ -237,6 +239,7 @@ procedure TForm1.ParseAsJson(Sender: TObject);
 var Pessoa: Json;
   I : Integer;
   Key: String;
+  JValue: TJsonValue;
 begin
   Pessoa := Memo1.Lines.Text;
   ValueListEditor1.Strings.Clear;
@@ -250,7 +253,12 @@ begin
     Label2.Caption :=  Pessoa.asJsonObject.Get(1).JsonString.Value  + ' = ' + Pessoa.asJsonObject.Get(1).JsonValue.Value;
 
   for I := 0 to Pessoa.asJsonObject.Count -1 do
-      ValueListEditor1.Strings.AddPair(Pessoa.asJsonObject.Get(i).JsonString.Value, Pessoa.asJsonObject.Get(i).JsonValue.Value);
+  begin
+    if Pessoa.asJsonObject.Get(i).JsonValue.Value <> '' then
+      ValueListEditor1.Strings.AddPair(Pessoa.asJsonObject.Get(i).JsonString.Value, Pessoa.asJsonObject.Get(i).JsonValue.Value)
+    else
+      ValueListEditor1.Strings.AddPair(Pessoa.asJsonObject.Get(i).JsonString.Value, Pessoa.asJsonObject.Get(i).JsonValue.ToJSON)
+  end;
 
  {$ENDREGION}
 
@@ -351,6 +359,14 @@ begin
   end;
 end;
 
+
+procedure TForm1.Subnivel(Sender: TObject);
+var Sub: Json;
+begin
+  Sub := Memo1.Lines.Text;
+  Sub.Value['Teste']:= '{"subnivel":"a"}';
+  Memo1.Lines.Text := Sub;
+end;
 
 { TPessoa }
 
