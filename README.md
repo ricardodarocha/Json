@@ -7,8 +7,14 @@ To use the Json type just add the unit assis.json; Then declare a variable of ty
 ```  Delphi
 uses assis.json;
 var Employee: Json;
+    Id: integer;
+    Name: String;
+    Loc: String;
 begin
   Employee := '{"id": 965, "name": "Jose", "location": "Brasil"} 
+  Id := Employee.value['id'];
+  Name := Employee.value['name'];
+  Loc := Employee.value['location'];
 end;
 ```
  
